@@ -8,7 +8,7 @@ typeset -g ZSH_HELPME_COLOR="fg=8"
 
 # API endpoint for AI suggestions (default: OpenAI)
 (( ! ${+ZSH_HELPME_API_ENDPOINT} )) &&
-typeset -g ZSH_HELPME_API_ENDPOINT="https://api.openai.com/v1/completions"
+typeset -g ZSH_HELPME_API_ENDPOINT=""
 
 # API key for the AI service
 (( ! ${+ZSH_HELPME_API_KEY} )) &&
@@ -35,15 +35,27 @@ _zsh_helpme_get_suggestion() {
     
     # Call AI API (using curl)
     local suggestion=$(curl -s -H "Content-Type: application/json" \
-         -H "Authorization: Bearer $ZSH_HELPME_API_KEY" \
-         -d "{
-           \"model\": \"gpt-3.5-turbo\",
-           \"prompt\": \"$prompt\",
-           \"max_tokens\": 50,
-           \"temperature\": 0.7
-         }" \
-         "$ZSH_HELPME_API_ENDPOINT" | jq -r '.choices[0].text')
-    
+        -H "Authorization: Bearer $ZSH_HELPME_API_KEY" \
+        -d "{
+        \"messages\": [
+            {
+            \"role\": \"system\",
+            \"content\": \"You are a helpful linux command-line assistant. Provide brief, direct command completions.\"
+            },
+            {
+            \"role\": \"user\",
+            \"content\": \"$prompt\"
+            }
+        ],
+        \"stream\": false,
+        \"model\": \"gpt-3.5-turbo\",
+        \"temperature\": 0.5,
+        \"presence_penalty\": 0,
+        \"frequency_penalty\": 0,
+        \"top_p\": 1
+        }" \
+        "$ZSH_HELPME_API_ENDPOINT" | jq -r '.choices[0].message.content')
+
     echo $suggestion
 }
 
@@ -57,7 +69,7 @@ _zsh_helpme_suggest() {
         
         if [[ -n "$suggestion" ]]; then
             # Display suggestion in the configured color
-            local colored_suggestion="%F{$ZSH_HELPME_COLOR}${suggestion}%f"
+            local colored_suggestion=$suggestion
             
             # Show suggestion to the right of the cursor
             POSTDISPLAY="$colored_suggestion"
